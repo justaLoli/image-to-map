@@ -6,6 +6,18 @@ import exifr from 'exifr';
 import 'leaflet/dist/leaflet.css';
 import './style.css';
 
+// --- 解决 Leaflet 生产环境图标问题的代码 ---
+// 1. 手动导入所有需要的图标资源
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+// 2. 重写 L.Icon.Default 的默认选项
+//    Vite 会将上面导入的图片路径替换为打包后的实际路径
+Object.assign(L.Icon.Default.prototype.options, {
+    iconRetinaUrl: markerIcon2x,
+    iconUrl: markerIcon,
+    shadowUrl: markerShadow,
+});
 
 // 2. 为非标准API和复杂数据结构定义类型/接口
 // 这会让你的代码获得完整的类型提示
