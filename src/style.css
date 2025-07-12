@@ -1,0 +1,42 @@
+/* 基本重置，确保全屏显示 */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: sans-serif;
+}
+
+/* 外层容器 #all 使用 Flexbox 布局 */
+#all {
+    display: flex; /* 启用 Flexbox */
+    flex-direction: row; /* 子元素水平排列（默认值，可不写）*/
+    width: 100%;
+    height: 100%;
+}
+
+/* 左侧边栏 #sidebar 的样式 */
+#sidebar {
+    /* * flex: 0 0 30%; 
+     * flex-grow: 0 (不放大)
+     * flex-shrink: 0 (不缩小)
+     * flex-basis: 30% (基础宽度为30%)
+     */
+    flex: 0 0 30%;
+    background-color: #f4f4f4; /* 给个背景色方便区分 */
+    padding: 20px;
+    box-sizing: border-box; /* 让 padding 不会撑大宽度 */
+    overflow-y: auto; /* 如果内容过多，则显示滚动条 */
+}
+
+/* 地图容器 #map 的样式 */
+#map {
+    /* flex: 1; 会自动填充剩余的空间 (70%) */
+    flex: 1;
+}
+
+/* 保持光标为十字准星 */
+/* 选框的样式，可以自定义 */
+.leaflet-zoom-box {
+    background: rgba(255, 255, 255, 0.5);
+    border: 2px dotted #ff7800;
+}
