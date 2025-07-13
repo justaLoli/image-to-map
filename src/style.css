@@ -40,3 +40,27 @@ html, body {
     background: rgba(255, 255, 255, 0.5);
     border: 2px dotted #ff7800;
 }
+
+.list-item {
+  display: flex;
+  max-height: 150px;
+  border: 1px solid #ccc;
+  padding: 8px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+
+.list-item-desc {
+  flex: 0 0 70%;
+  font-size: 14px;
+  margin: 0;
+  overflow-wrap: break-word;
+  overflow: auto;
+}
+
+.list-item-img {
+  flex: 0 0 30%;
+  max-height: 100%;
+  max-width: 100%;
+  overflow: auto;
+}

@@ -237,11 +237,9 @@ const SidebarManager = {
         if (descriptionElement) descriptionElement.innerHTML = content;
     },
 
-    addToList: function (content: string) {
+    addToList: function (element: HTMLElement) {
         const list = document.getElementById("marker-list");
-        const listItem = document.createElement('p');
-        listItem.innerHTML = content;
-        list?.appendChild(listItem);
+        list?.appendChild(element);
     },
 };
 
@@ -283,8 +281,26 @@ async function main(fileArray: File[]): Promise<void> {
         const markerDescription = `时间：${formatDate(img.datetime)}<br>文件：${img.file.name}`;
         MapManager.addMarker(img.gps, markerDescription);
         
-        const listDescription = `时间：${formatDate(img.datetime)}<br>文件：${img.file.name}<br>位置：${img.gps.lat.toFixed(5)}, ${img.gps.lng.toFixed(5)}`;
-        SidebarManager.addToList(listDescription);
+        const listItemElement = document.createElement('div');
+        listItemElement.className = "list-item";
+        const listItemElementDescription = document.createElement('p');
+        listItemElementDescription.className = "list-item-desc";
+        listItemElementDescription.innerHTML = `时间：${formatDate(img.datetime)}<br>文件：${img.file.name}`;
+        const listItemElementPreview = document.createElement('img');
+        listItemElementPreview.className = "list-item-img";
+        listItemElement.appendChild(listItemElementDescription);
+        listItemElement.appendChild(listItemElementPreview);
+        const url = URL.createObjectURL(img.file);
+        listItemElementPreview.src = url;
+        listItemElementPreview.onload = () => {
+            URL.revokeObjectURL(listItemElementPreview.src);
+        }
+        listItemElement.onclick = () => {
+            console.log("clicked img", img);
+        }
+        // listItemElementPreview.loading = "lazy";
+        SidebarManager.addToList(listItemElement);
+
     });
     
     MapManager.viewAllMarker();
