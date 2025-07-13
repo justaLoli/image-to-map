@@ -11,12 +11,15 @@ import './style.css';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-// 2. 重写 L.Icon.Default 的默认选项
-//    Vite 会将上面导入的图片路径替换为打包后的实际路径
-Object.assign(L.Icon.Default.prototype.options, {
+
+const myMarkerIcon = L.icon({
     iconRetinaUrl: markerIcon2x,
     iconUrl: markerIcon,
     shadowUrl: markerShadow,
+    iconSize:    [25, 41], // marker 大小
+    iconAnchor:  [12, 41], // marker 底部尖端的位置
+    popupAnchor: [1, -34], // popup 弹出的位置
+    shadowSize:  [41, 41]  // 阴影大小
 });
 
 // 2. 为非标准API和复杂数据结构定义类型/接口
@@ -118,12 +121,8 @@ const MapManager = {
     },
     
 
-    addMarker: function (coord: { lat: number; lng: number }, popupContent: string | null = null) {
-        const newMarker = L.marker([coord.lat, coord.lng]);
-        if (popupContent) {
-            newMarker.bindPopup(popupContent).openPopup();
-        }
-        this.allMarkersGroup?.addLayer(newMarker); // 使用可选链操作符更安全
+    addMarker: function (marker: L.Marker<any>) {
+        this.allMarkersGroup?.addLayer(marker);
     },
 
     viewAllMarker: function () {
@@ -131,6 +130,18 @@ const MapManager = {
         if (bounds && bounds.isValid()) {
             this.map?.fitBounds(bounds.pad(0.1));
         }
+    }, 
+
+    focusOnMarker: function (marker: L.Marker<any>) {
+        if (!marker || !this.map) {
+            console.warn(`no marker or no map`);
+            return;
+        }
+        const latLng = marker.getLatLng();
+        this.map.flyTo(latLng, 18, {
+            animate: true,
+        });
+        marker.openPopup(); // 要放在激活flyTo后面。
     }
 };
 
@@ -276,10 +287,24 @@ async function main(fileArray: File[]): Promise<void> {
     
     SidebarManager.setDescription(`导入了 ${imageFilesWithMeta.length} 张图片，其中 ${imagesWithValidGPS.length} 张具备位置信息，已在图上标出`);
 
+
+    const markerMap = new Map<ImageFileWithMeta, L.Marker<any>>()
     imagesWithValidGPS.forEach(img => {
         if (!img.gps) return; // TS 类型保护
+
+        const createMarker = (lat: number, lng: number, popup: any) => {
+            const marker = L.marker([lat, lng], {icon: myMarkerIcon});
+            marker.bindPopup(popup);
+            return marker;
+        }
         const markerDescription = `时间：${formatDate(img.datetime)}<br>文件：${img.file.name}`;
-        MapManager.addMarker(img.gps, markerDescription);
+        const marker = createMarker(img.gps.lat, img.gps.lng, markerDescription);
+        markerMap.set(img, marker);
+        marker.addEventListener('click', () => {
+            console.log("marker被点击", marker);
+            console.log("对应的img是", img);
+        });
+        MapManager.addMarker(marker);
         
         const listItemElement = document.createElement('div');
         listItemElement.className = "list-item";
@@ -297,6 +322,8 @@ async function main(fileArray: File[]): Promise<void> {
         }
         listItemElement.onclick = () => {
             console.log("clicked img", img);
+            console.log("对应的marker", markerMap.get(img));
+            MapManager.focusOnMarker(markerMap.get(img)!);
         }
         // listItemElementPreview.loading = "lazy";
         SidebarManager.addToList(listItemElement);
