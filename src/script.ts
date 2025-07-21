@@ -1,6 +1,7 @@
 // 1. 模块导入
 import L from 'leaflet';
 import exifr from 'exifr';
+import heic2any from "heic2any";
 
 // 导入库和自定义的CSS文件，Vite会自动处理
 import 'leaflet/dist/leaflet.css';
@@ -16,10 +17,10 @@ const myMarkerIcon = L.icon({
     iconRetinaUrl: markerIcon2x,
     iconUrl: markerIcon,
     shadowUrl: markerShadow,
-    iconSize:    [25, 41], // marker 大小
-    iconAnchor:  [12, 41], // marker 底部尖端的位置
+    iconSize: [25, 41], // marker 大小
+    iconAnchor: [12, 41], // marker 底部尖端的位置
     popupAnchor: [1, -34], // popup 弹出的位置
-    shadowSize:  [41, 41]  // 阴影大小
+    shadowSize: [41, 41]  // 阴影大小
 });
 
 // 2. 为非标准API和复杂数据结构定义类型/接口
@@ -47,6 +48,7 @@ interface ImageFileWithMeta {
     file: File;
     datetime: Date;
     gps: { lat: number; lng: number } | null;
+    thumbnail: string | null;
 }
 
 
@@ -206,6 +208,8 @@ const SidebarManager = {
         this.dropZone.addEventListener("dragleave", () => {
             this.dropZone!.classList.remove("dragover");
         });
+
+        this.setDescription("将旅行照片文件夹拖入到侧边栏，可以进行导入<br>也可以点击这个按钮进行导入")
     },
 
     // 文件夹拖放支持的辅助函数
@@ -260,26 +264,76 @@ function formatDate(date: Date): string {
     return date.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', ' ');
 }
 
+const generateThumbnailFromFile = async (file: File) => {
+    function generateThumbnailFromBlob(blob: Blob, maxWidth = 200, maxHeight = 200): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
+                canvas.width = img.width * ratio;
+                canvas.height = img.height * ratio;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return reject(new Error("Canvas not supported"));
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                URL.revokeObjectURL(url);
+                resolve(canvas.toDataURL("image/jpeg", 0.8));
+            };
+            img.onerror = reject;
+            img.src = url;
+        });
+    }
+    if (file.name.toLowerCase().endsWith(".heic")) {
+        const convertedBlob = await heic2any({
+            blob: file,
+            toType: "image/jpeg",
+            quality: 0.8
+        }) as Blob;
+        return await generateThumbnailFromBlob(convertedBlob);
+    } else {
+        return await generateThumbnailFromBlob(file);
+    }
+}
+
 async function main(fileArray: File[]): Promise<void> {
     const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/jpg'];
     const imageFiles = fileArray.filter(file =>
         imageTypes.includes(file.type.toLowerCase()) || file.name.toLowerCase().endsWith('.heic')
     );
 
-    const imageFilesWithMeta: ImageFileWithMeta[] = await Promise.all(imageFiles.map(async (file) => {
+    const parseImageFile = async (file: File) => {
         let exifData: any = {}; // exifr 的返回类型比较复杂，这里用 any 简化
         try {
             exifData = await exifr.parse(file, { gps: true });
         } catch (e) {
             console.warn('EXIF read failed for:', file.name, e);
         }
-
+        let thumbnail: string | null = null;
+        try{
+            thumbnail = await generateThumbnailFromFile(file);
+        } catch (e) {
+            console.warn(`缩略图生成失败`, file, e);
+            thumbnail = null;
+        }
         return {
             file,
             datetime: exifData?.DateTimeOriginal || new Date(file.lastModified),
             gps: (exifData?.latitude && exifData?.longitude) ? { lat: exifData.latitude, lng: exifData.longitude } : null,
+            thumbnail: thumbnail
         };
-    }));
+    }
+    const imageFilesWithMeta: ImageFileWithMeta[] = [];
+    let count: number = 0;
+    // const imageFilesWithMeta: ImageFileWithMeta[] = await Promise.all(imageFiles.map(parseImageFile));
+    for (const file of imageFiles) {
+        SidebarManager.setDescription(`正在解析并生成缩略图以优化后续操作<br>第${count}张照片，共${imageFiles.length}张...`)
+        await new Promise(requestAnimationFrame); // 或者 setTimeout(() => {}, 0)
+        const t = await parseImageFile(file);
+        imageFilesWithMeta.push(t);
+        count++;
+    }
+
 
     imageFilesWithMeta.sort((a, b) => a.datetime.getTime() - b.datetime.getTime());
 
@@ -293,7 +347,7 @@ async function main(fileArray: File[]): Promise<void> {
         if (!img.gps) return; // TS 类型保护
 
         const createMarker = (lat: number, lng: number, popup: any) => {
-            const marker = L.marker([lat, lng], {icon: myMarkerIcon});
+            const marker = L.marker([lat, lng], { icon: myMarkerIcon });
             marker.bindPopup(popup);
             return marker;
         }
@@ -315,17 +369,21 @@ async function main(fileArray: File[]): Promise<void> {
         listItemElementPreview.className = "list-item-img";
         listItemElement.appendChild(listItemElementDescription);
         listItemElement.appendChild(listItemElementPreview);
-        const url = URL.createObjectURL(img.file);
-        listItemElementPreview.src = url;
-        listItemElementPreview.onload = () => {
-            URL.revokeObjectURL(listItemElementPreview.src);
+        if (!img.thumbnail) {
+            const url = URL.createObjectURL(img.file);
+            listItemElementPreview.src = url;
+            listItemElementPreview.onload = () => {
+                URL.revokeObjectURL(listItemElementPreview.src);
+            }
+        } else {
+            listItemElementPreview.src = img.thumbnail;
         }
         listItemElement.onclick = () => {
             console.log("clicked img", img);
             console.log("对应的marker", markerMap.get(img));
             MapManager.focusOnMarker(markerMap.get(img)!);
         }
-        // listItemElementPreview.loading = "lazy";
+        listItemElementPreview.loading = "lazy";
         SidebarManager.addToList(listItemElement);
 
     });
