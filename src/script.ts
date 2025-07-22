@@ -1,5 +1,5 @@
 // 1. 模块导入
-import L from 'leaflet';
+import L, { marker } from 'leaflet';
 import exifr from 'exifr';
 import heic2any from "heic2any";
 
@@ -49,6 +49,7 @@ interface ImageFileWithMeta {
     datetime: Date;
     gps: { lat: number; lng: number } | null;
     thumbnail: string | null;
+    marker?: L.Marker;
 }
 
 
@@ -108,11 +109,12 @@ const MapManager = {
     init: function () {
         // 使用 this 关键字指向当前对象，避免全局变量
         this.map = L.map('map', {
-            preferCanvas: true
+            preferCanvas: true,
+            zoomSnap: 0.1,
+            scrollWheelZoom: true
         }).setView([39.875272, 116.3914417], 13);
-        
         this.map.invalidateSize();
-        
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxZoom: 19,
@@ -120,6 +122,28 @@ const MapManager = {
         
         this.allMarkersGroup = L.featureGroup().addTo(this.map);
         this.rightClickZoom.init(this.map);
+
+        // 实现macOS触控板缩放移动手势的妙妙小代码
+        this.map.scrollWheelZoom.disable();
+        this.map.getContainer().addEventListener('wheel', (e) => {
+            e.preventDefault(); // 阻止默认缩放行为
+            if(!this.map){return;}
+            if (e.ctrlKey) {
+                // 双指捏合手势（模拟 Ctrl + 滚轮）：缩放地图
+                const delta = -e.deltaY; // 注意：负值表示放大，正值表示缩小
+                const zoomDelta = delta > 0 ? 1 : -1;
+                this.map.flyTo(
+                    this.map.getCenter(),
+                    this.map.getZoom() + zoomDelta * 0.3);
+            } else {
+                // 普通滚动（双指滑动）：平移地图
+                this.map.panBy([e.deltaX, e.deltaY], {
+                    animate: false
+                });
+            }
+        }, { passive: false });
+
+
     },
     
 
@@ -170,7 +194,7 @@ const SidebarManager = {
             input.addEventListener('change', () => {
                 if (input.files) {
                     const fileArray = Array.from(input.files);
-                    main(fileArray);
+                    App.main(fileArray);
                 }
             });
             input.click();
@@ -197,7 +221,7 @@ const SidebarManager = {
                 }
             }
             await Promise.all(tasks);
-            main(fileArray);
+            App.main(fileArray);
         });
 
         this.dropZone.addEventListener("dragover", (event: DragEvent) => {
@@ -259,112 +283,99 @@ const SidebarManager = {
 };
 
 
-// 5. 全局辅助函数和主逻辑 (TypeScript版)
-function formatDate(date: Date): string {
-    return date.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', ' ');
-}
+const App = {
+    imageFiles: [] as ImageFileWithMeta[],
+    generateThumbnailFromFile: async function (file: File): Promise<string> {
+        function generateThumbnailFromBlob(blob: Blob, maxWidth = 200, maxHeight = 200): Promise<string> {
+            return new Promise((resolve, reject) => {
+                const url = URL.createObjectURL(blob);
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
+                    canvas.width = img.width * ratio;
+                    canvas.height = img.height * ratio;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return reject(new Error("Canvas not supported"));
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    URL.revokeObjectURL(url);
+                    resolve(canvas.toDataURL("image/jpeg", 0.8));
+                };
+                img.onerror = reject;
+                img.src = url;
+            });
+        }
+        if (file.name.toLowerCase().endsWith(".heic")) {
+            const convertedBlob = await heic2any({
+                blob: file,
+                toType: "image/jpeg",
+                quality: 0.8
+            }) as Blob;
+            return await generateThumbnailFromBlob(convertedBlob);
+        } else {
+            return await generateThumbnailFromBlob(file);
+        }
+    },
+    resetImageFiles: function () {
+        this.imageFiles.length = 0;
+        //TODO: 还需要在UI层面清理数据。
+    },
+    parseImageFiles: async function (fileArray: File[], progressCallback?: (count: number, total: number) => void) {
+        const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/jpg'];
+        const filteredFiles = fileArray.filter(file =>
+            imageTypes.includes(file.type.toLowerCase()) || file.name.toLowerCase().endsWith('.heic')
+        );
 
-const generateThumbnailFromFile = async (file: File) => {
-    function generateThumbnailFromBlob(blob: Blob, maxWidth = 200, maxHeight = 200): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const url = URL.createObjectURL(blob);
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
-                canvas.width = img.width * ratio;
-                canvas.height = img.height * ratio;
-                const ctx = canvas.getContext('2d');
-                if (!ctx) return reject(new Error("Canvas not supported"));
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                URL.revokeObjectURL(url);
-                resolve(canvas.toDataURL("image/jpeg", 0.8));
+        const parseImageFile = async (file: File) => {
+            let exifData: any = {}; // exifr 的返回类型比较复杂，这里用 any 简化
+            try {
+                exifData = await exifr.parse(file, { gps: true });
+            } catch (e) {
+                console.warn('EXIF read failed for:', file.name, e);
+            }
+            let thumbnail: string | null = null;
+            try {
+                thumbnail = await this.generateThumbnailFromFile(file);
+            } catch (e) {
+                console.warn(`缩略图生成失败`, file, e);
+                thumbnail = null;
+            }
+            return {
+                file,
+                datetime: exifData?.DateTimeOriginal || new Date(file.lastModified),
+                gps: (exifData?.latitude && exifData?.longitude) ? { lat: exifData.latitude, lng: exifData.longitude } : null,
+                thumbnail: thumbnail
             };
-            img.onerror = reject;
-            img.src = url;
-        });
-    }
-    if (file.name.toLowerCase().endsWith(".heic")) {
-        const convertedBlob = await heic2any({
-            blob: file,
-            toType: "image/jpeg",
-            quality: 0.8
-        }) as Blob;
-        return await generateThumbnailFromBlob(convertedBlob);
-    } else {
-        return await generateThumbnailFromBlob(file);
-    }
-}
-
-async function main(fileArray: File[]): Promise<void> {
-    const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/jpg'];
-    const imageFiles = fileArray.filter(file =>
-        imageTypes.includes(file.type.toLowerCase()) || file.name.toLowerCase().endsWith('.heic')
-    );
-
-    const parseImageFile = async (file: File) => {
-        let exifData: any = {}; // exifr 的返回类型比较复杂，这里用 any 简化
-        try {
-            exifData = await exifr.parse(file, { gps: true });
-        } catch (e) {
-            console.warn('EXIF read failed for:', file.name, e);
         }
-        let thumbnail: string | null = null;
-        try{
-            thumbnail = await generateThumbnailFromFile(file);
-        } catch (e) {
-            console.warn(`缩略图生成失败`, file, e);
-            thumbnail = null;
+        let count: number = 0;
+        // const imageFilesWithMeta: ImageFileWithMeta[] = await Promise.all(imageFiles.map(parseImageFile));
+        for (const file of filteredFiles) {
+            if (progressCallback) { progressCallback(count, filteredFiles.length); }
+            await new Promise(requestAnimationFrame); // 或者 setTimeout(() => {}, 0)
+            const t = await parseImageFile(file);
+            this.imageFiles.push(t);
+            count++;
         }
-        return {
-            file,
-            datetime: exifData?.DateTimeOriginal || new Date(file.lastModified),
-            gps: (exifData?.latitude && exifData?.longitude) ? { lat: exifData.latitude, lng: exifData.longitude } : null,
-            thumbnail: thumbnail
-        };
-    }
-    const imageFilesWithMeta: ImageFileWithMeta[] = [];
-    let count: number = 0;
-    // const imageFilesWithMeta: ImageFileWithMeta[] = await Promise.all(imageFiles.map(parseImageFile));
-    for (const file of imageFiles) {
-        SidebarManager.setDescription(`正在解析并生成缩略图以优化后续操作<br>第${count}张照片，共${imageFiles.length}张...`)
-        await new Promise(requestAnimationFrame); // 或者 setTimeout(() => {}, 0)
-        const t = await parseImageFile(file);
-        imageFilesWithMeta.push(t);
-        count++;
-    }
 
-
-    imageFilesWithMeta.sort((a, b) => a.datetime.getTime() - b.datetime.getTime());
-
-    const imagesWithValidGPS = imageFilesWithMeta.filter(item => item.gps);
-    
-    SidebarManager.setDescription(`导入了 ${imageFilesWithMeta.length} 张图片，其中 ${imagesWithValidGPS.length} 张具备位置信息，已在图上标出`);
-
-
-    const markerMap = new Map<ImageFileWithMeta, L.Marker<any>>()
-    imagesWithValidGPS.forEach(img => {
-        if (!img.gps) return; // TS 类型保护
-
-        const createMarker = (lat: number, lng: number, popup: any) => {
+        this.imageFiles.sort((a, b) => a.datetime.getTime() - b.datetime.getTime());
+    },
+    createMarker: (img: ImageFileWithMeta, onclick?: any) => {
+        const _createMarker = (lat: number, lng: number, popup: any) => {
             const marker = L.marker([lat, lng], { icon: myMarkerIcon });
             marker.bindPopup(popup);
             return marker;
         }
         const markerDescription = `时间：${formatDate(img.datetime)}<br>文件：${img.file.name}`;
-        const marker = createMarker(img.gps.lat, img.gps.lng, markerDescription);
-        markerMap.set(img, marker);
-        marker.addEventListener('click', () => {
-            console.log("marker被点击", marker);
-            console.log("对应的img是", img);
-        });
-        MapManager.addMarker(marker);
-        
+        const marker = _createMarker(img.gps!.lat, img.gps!.lng, markerDescription);
+        marker.addEventListener('click', onclick);
+        return marker;
+    },
+    createListItemElement: (img: ImageFileWithMeta, onclick?: any) => {
         const listItemElement = document.createElement('div');
         listItemElement.className = "list-item";
         const listItemElementDescription = document.createElement('p');
         listItemElementDescription.className = "list-item-desc";
-        listItemElementDescription.innerHTML = `时间：${formatDate(img.datetime)}<br>文件：${img.file.name}`;
+        listItemElementDescription.innerHTML = `时间：${formatDate(img.datetime)}<br>文件：${img.file.name}<br>位置信息：${img.gps ? "有" : "无"}`;
         const listItemElementPreview = document.createElement('img');
         listItemElementPreview.className = "list-item-img";
         listItemElement.appendChild(listItemElementDescription);
@@ -378,18 +389,48 @@ async function main(fileArray: File[]): Promise<void> {
         } else {
             listItemElementPreview.src = img.thumbnail;
         }
-        listItemElement.onclick = () => {
-            console.log("clicked img", img);
-            console.log("对应的marker", markerMap.get(img));
-            MapManager.focusOnMarker(markerMap.get(img)!);
-        }
+        listItemElement.onclick = onclick;
         listItemElementPreview.loading = "lazy";
-        SidebarManager.addToList(listItemElement);
+        return listItemElement;
+    },
+    main: async function (fileArray: File[]): Promise<void> {
 
-    });
+        this.resetImageFiles();
+        await this.parseImageFiles(fileArray, (current, total) => {
+            SidebarManager.setDescription(`正在解析并生成缩略图以优化后续操作<br>第${current}张照片，共${total}张...`)
+        });
     
-    MapManager.viewAllMarker();
+        SidebarManager.setDescription(`导入了 ${this.imageFiles.length} 张图片，其中 ${this.imageFiles.filter(i => i.gps).length} 张具备位置信息，已在图上标出`);
+
+
+        this.imageFiles.filter(i => i.gps).forEach(img => {
+            if (!img.gps) { return; }
+            img.marker = this.createMarker(img, () => {
+                console.log("marker被点击", marker, img);
+            });
+            MapManager.addMarker(img.marker);
+        })
+
+        this.imageFiles.filter(_ => 1).forEach(img => {
+            const listItemElement = this.createListItemElement(img, () => {
+                console.log("列表元素被点击：", img, img.marker);
+                img.marker && MapManager.focusOnMarker(img.marker);
+            });
+            SidebarManager.addToList(listItemElement);
+        });
+    
+        MapManager.viewAllMarker();
+    }
+
 }
+
+
+// 5. 全局辅助函数和主逻辑 (TypeScript版)
+function formatDate(date: Date): string {
+    return date.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', ' ');
+}
+
+
 
 // 6. 启动应用
 MapManager.init();
