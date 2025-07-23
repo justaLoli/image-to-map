@@ -1,3 +1,5 @@
+import { formatDate, ImageFileWithMeta } from "./types";
+
 // 为文件系统API创建简化的类型定义
 interface FileSystemEntry {
     isFile: boolean;
@@ -18,8 +20,13 @@ interface FileSystemDirectoryReader {
 export const SidebarManager = {
     dropZone: document.getElementById("sidebar") as HTMLElement | null,
     loadbutton: document.getElementById("loadfile-button") as HTMLElement | null,
+    listItemsMap: new Map<string, HTMLDivElement>,
 
-    init: function (onFileLoaded: (fileArray: File[]) => void) {
+    init: function ( params: {
+        onFileLoaded: (fileArray: File[]) => void,
+        onChangeFilter: (filter: (img:ImageFileWithMeta) => boolean) => void
+    }) {
+        const {onFileLoaded, onChangeFilter} = params;
         if (!this.dropZone || !this.loadbutton) {
             console.error("Sidebar elements not found!");
             return;
@@ -45,7 +52,12 @@ export const SidebarManager = {
             this.dropZone!.classList.remove("dragover");
         });
 
-        this.setDescription("将旅行照片文件夹拖入到侧边栏，可以进行导入<br>也可以点击这个按钮进行导入")
+        this.setDescription("将旅行照片文件夹拖入到侧边栏，可以进行导入<br>也可以点击这个按钮进行导入");
+
+        const showNoGPSButton = document.getElementById("shownogps-button")! as HTMLButtonElement;
+        const showAllButton = document.getElementById("showall-button")! as HTMLButtonElement;
+        showNoGPSButton.onclick = () => {onChangeFilter(img => !img.gps)}
+        showAllButton.onclick = () => {onChangeFilter(_ => true)}
     },
 
     setDescription: function (content: string) {
@@ -53,10 +65,43 @@ export const SidebarManager = {
         if (descriptionElement) descriptionElement.innerHTML = content;
     },
 
-    addToList: function (element: HTMLElement) {
-        const list = document.getElementById("marker-list");
-        list?.appendChild(element);
+    createListItem(img: ImageFileWithMeta, onclick?: any) {
+        const listItemElement = document.createElement('div');
+        listItemElement.className = "list-item";
+        const listItemElementDescription = document.createElement('p');
+        listItemElementDescription.className = "list-item-desc";
+        listItemElementDescription.innerHTML = `时间：${formatDate(img.datetime)}<br>文件：${img.file.name}<br>位置信息：${img.gps ? "有" : "无"}`;
+        const listItemElementPreview = document.createElement('img');
+        listItemElementPreview.className = "list-item-img";
+        listItemElement.appendChild(listItemElementDescription);
+        listItemElement.appendChild(listItemElementPreview);
+        if (!img.thumbnail) {
+            const url = URL.createObjectURL(img.file);
+            listItemElementPreview.src = url;
+            listItemElementPreview.onload = () => {
+                URL.revokeObjectURL(listItemElementPreview.src);
+            }
+        } else {
+            listItemElementPreview.src = img.thumbnail;
+        }
+        listItemElement.onclick = onclick;
+        listItemElementPreview.loading = "lazy";
+
+        this.listItemsMap.set(img.id, listItemElement);
     },
+    showList(imageArray: ImageFileWithMeta[]) {
+        const list = document.getElementById("marker-list")!;
+        list.innerHTML = "";
+        imageArray.forEach((img) => {
+            const item = this.listItemsMap.get(img.id);
+            item && list.appendChild(item);
+        });
+    },
+    clearList() {
+        const list = document.getElementById("marker-list")!;
+        list.innerHTML = '';
+        this.listItemsMap.clear();
+    }
 };
 
 
