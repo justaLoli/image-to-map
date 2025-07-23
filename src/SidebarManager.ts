@@ -54,10 +54,26 @@ export const SidebarManager = {
 
         this.setDescription("将旅行照片文件夹拖入到侧边栏，可以进行导入<br>也可以点击这个按钮进行导入");
 
-        const showNoGPSButton = document.getElementById("shownogps-button")! as HTMLButtonElement;
-        const showAllButton = document.getElementById("showall-button")! as HTMLButtonElement;
-        showNoGPSButton.onclick = () => {onChangeFilter(img => !img.gps)}
-        showAllButton.onclick = () => {onChangeFilter(_ => true)}
+        const createButton = (param: {id: string, onclick: any, innerHTML: string}) => {
+            const groupID = "button-group-1"
+            const {id, onclick, innerHTML} = param;
+            const buttonGroup = document.getElementById(groupID)! as HTMLDivElement;
+            const button = document.createElement("button");
+            button.id = id;
+            button.onclick = onclick;
+            button.innerHTML = innerHTML;
+            buttonGroup.appendChild(button);
+        }
+        createButton({
+            id: "shownogps-button",
+            innerHTML: "只显示无位置信息",
+            onclick: () => {onChangeFilter(img=>!img.gps)}
+        });
+        createButton({
+            id: "showall-button",
+            innerHTML: "显示全部",
+            onclick: () => {onChangeFilter(_ => true)}
+        })
     },
 
     setDescription: function (content: string) {

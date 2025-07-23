@@ -17,14 +17,16 @@ html, body, #root {
 
 /* 左侧边栏 #sidebar 的样式 */
 #sidebar {
+    display: flex;
+    flex-direction: column;
     flex: 0 0 30%;
     max-width: 400px; /* 添加一个最大宽度 */
     min-width: 300px; /* 添加一个最小宽度 */
     background-color: #f4f4f4;
     padding: 20px;
     box-sizing: border-box;
-    overflow-y: auto;
     border-right: 1px solid #ccc;
+    overflow: hidden;
 }
 
 #sidebar.dragover {
@@ -43,7 +45,10 @@ html, body, #root {
 }
 
 #marker-list {
+    flex: 1;
+    overflow-y: auto;
   margin-top: 20px;
+  /*padding-right: 10px;*/
 }
 
 .list-item {
