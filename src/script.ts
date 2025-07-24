@@ -127,6 +127,7 @@ const App = {
 MapManager.init();
 SidebarManager.init({
     onFileLoaded: (fileArray) => App.main(fileArray),
-    onChangeFilter: (filter) => { SidebarManager.showList(App.imageFiles.filter(filter)) }
+    onChangeFilter: (filter) => { SidebarManager.showList(App.imageFiles.filter(filter)) },
+    onSelectChange: (sel) => {console.log("select changed!", sel)}
 });
 
