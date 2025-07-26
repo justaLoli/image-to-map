@@ -68,13 +68,17 @@ html, body, #root {
     background-color: #eaf6ff;
 }
 
+.list-item.selected {
+    background-color: #aae6ff;
+    border: 1px solid #007bff;
+}
+
 .list-item-desc {
   flex: 1;
   font-size: 14px;
   margin: 0;
   margin-right: 10px;
   overflow-wrap: break-word;
-  max-height: 100px;
   overflow: auto;
 }
 

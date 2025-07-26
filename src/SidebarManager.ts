@@ -1,4 +1,4 @@
-import { formatDate, ImageFileWithMeta } from "./types";
+import { createButtonToButtonGroup, formatDate, ImageFileWithMeta } from "./types";
 
 // 为文件系统API创建简化的类型定义
 interface FileSystemEntry {
@@ -17,83 +17,74 @@ interface FileSystemDirectoryReader {
 	readEntries(successCallback: (entries: FileSystemEntry[]) => void, errorCallback?: (error: Error) => void): void;
 }
 
-export type SelectedIDs = Set<string>;
 
 const createButton = (param: { 
 	id: string, 
 	innerHTML: string 
 	onClick: (e: MouseEvent, button: HTMLButtonElement) => any, 
-}) => {
-	const GROUP_ID = "button-group-1";
-	const { id, onClick, innerHTML } = param;
-	const buttonGroup = document.getElementById(GROUP_ID)! as HTMLDivElement;
-	const button = document.createElement("button");
-	button.id = id;
-	button.addEventListener("click", (e) => { onClick(e, button) })
-	button.innerHTML = innerHTML;
-	buttonGroup.appendChild(button);
-}
+}) => createButtonToButtonGroup({ ...param, group_id: "button-group-1" })
+
+
+export type SelectedIDs = Set<string>;
+class SelectControl {
+	enabled = false;
+	selectedElements = new Set<HTMLDivElement>();
+	externalOnSelectChange = null as null | ((selectedElements: SelectedIDs) => void);
+	init() {
+	};
+	setEnabled(mode: boolean, onSelectChange: (ele: SelectedIDs) => void) {
+		this.enabled = mode;
+		this.externalOnSelectChange = onSelectChange;
+		this.resetSelection();
+	};
+	resetSelection() { 
+		this.selectedElements.forEach(i => i.classList.remove("selected"));
+		this.selectedElements.clear();
+	};
+	onSelect(element: HTMLDivElement) {
+		if (!this.enabled) { return; }
+		if (this.selectedElements.has(element)) {
+			this.selectedElements.delete(element);
+			element.classList.remove("selected");
+		} else {
+			this.selectedElements.add(element);
+			element.classList.add("selected");
+		}
+		if (!this.externalOnSelectChange) { return; }
+		const selectedIDs = new Set<string>;
+		this.selectedElements.forEach(item => {
+			selectedIDs.add(item.dataset.id!);
+		});
+		this.externalOnSelectChange(selectedIDs);
+	}
+};
+
+
 
 export const SidebarManager = {
 	dropZone: document.getElementById("sidebar") as HTMLElement | null,
-	loadbutton: document.getElementById("loadfile-button") as HTMLElement | null,
 	listItemsMap: new Map<string, HTMLDivElement>,
 
-	selectControl: {
-		isSelectMode: false,
-		selectedElements: new Set<HTMLDivElement>(),
-		externalOnSelectChange: null as null | ((selectedElements: SelectedIDs) => void),
-		init(onSelectChange: (selectedElements: SelectedIDs) => void) {
-			this.externalOnSelectChange = onSelectChange;
-			createButton({
-				id: "selecttoggle-button",
-				innerHTML: "选择图片",
-				onClick: (_, button) => { 
-					this.changeSelectMode(!this.isSelectMode) 
-					button.innerHTML = this.isSelectMode ? "取消选择" : "选择图片"
-				}
-			})
-		},
-		changeSelectMode(mode: boolean) {
-			this.isSelectMode = mode;
-			this.resetSelection();
-		},
-		resetSelection() { this.selectedElements.clear() },
-		onSelect(element: HTMLDivElement) {
-			if (!this.isSelectMode) { return; }
-			// TODO: 增加样式变换。
-			this.selectedElements.has(element)
-				? this.selectedElements.delete(element)
-				: this.selectedElements.add(element);
-			if (!this.externalOnSelectChange) { return; }
-			const selectedIDs = new Set<string>;
-			this.selectedElements.forEach(item => {
-				selectedIDs.add(item.dataset.id!);
-			});
-			this.externalOnSelectChange(selectedIDs);
-		}
-	},
-
+	selectControl: new SelectControl,
+	listFilter: ((_) => true) as ((img: ImageFileWithMeta) => boolean),
 	init: function (params: {
 		onFileLoaded: (fileArray: File[]) => void,
 		onChangeFilter: (filter: (img: ImageFileWithMeta) => boolean) => void,
-		onSelectChange: (selectedElements: SelectedIDs) => void
+		gpsAssign_onSelectChange: (selectedElements: SelectedIDs) => void,
+		gpsAssign_onCancel: () => void,
+		onClear: () => void,
+		onExport: () => void
 	}) {
-		const { onFileLoaded, onChangeFilter, onSelectChange } = params;
-		if (!this.dropZone || !this.loadbutton) {
-			console.error("Sidebar elements not found!");
+		const { onFileLoaded, onChangeFilter, gpsAssign_onSelectChange, gpsAssign_onCancel, onClear, onExport } = params;
+		if (!this.dropZone) {
+			console.error("Sidebar not found!");
 			return;
 		}
-
-		this.loadbutton.addEventListener('click', () => {
-			getFileArrayFromClick().then(onFileLoaded);
-		});
 
 		this.dropZone.addEventListener("drop", async (event: DragEvent) => {
 			event.preventDefault();
 			this.dropZone!.classList.remove("dragover");
-			const fileArray = await getFileArrayFromDrag(event);
-			onFileLoaded(fileArray);
+			getFileArrayFromDrag(event).then(onFileLoaded);
 		});
 
 		this.dropZone.addEventListener("dragover", (event: DragEvent) => {
@@ -105,20 +96,42 @@ export const SidebarManager = {
 			this.dropZone!.classList.remove("dragover");
 		});
 
-		this.setDescription("将旅行照片文件夹拖入到侧边栏，可以进行导入<br>也可以点击这个按钮进行导入");
+		this.setDescription("将旅行照片文件夹拖入到侧边栏，可以进行导入<br>也可以点击按钮进行导入");
 
+		createButton({
+			id: "loadfile-button",
+			innerHTML: "导入图片",
+			onClick: () => { getFileArrayFromClick().then(onFileLoaded) }
+		});
+		createButton({
+			id: "clear-button",
+			innerHTML: "清除列表",
+			onClick: onClear
+		});
 		createButton({
 			id: "shownogps-button",
 			innerHTML: "只显示无位置信息",
-			onClick: () => { onChangeFilter(img => !img.gps) }
+			onClick: () => { this.listFilter = img => !img.gps; onChangeFilter(this.listFilter) }
 		});
 		createButton({
 			id: "showall-button",
 			innerHTML: "显示全部",
-			onClick: () => { onChangeFilter(_ => true) }
-		})
-
-		this.selectControl.init(onSelectChange);
+			onClick: () => { this.listFilter = _ => true; onChangeFilter(this.listFilter) }
+		});
+		createButton({
+			id: "selecttoggle-button",
+			innerHTML: "手动分配位置（推荐对无位置信息图片使用）",
+			onClick: (_, button) => { 
+				this.selectControl.setEnabled(!this.selectControl.enabled, gpsAssign_onSelectChange)
+				if (!this.selectControl.enabled) { gpsAssign_onCancel() } /* 从enable变换到了非enable */
+				button.innerHTML = this.selectControl.enabled ? "取消选择" : "手动分配位置（推荐对无位置信息图片使用）"
+			}
+		});
+		createButton({
+			id: "exportmanualgps-button",
+			innerHTML: "导出手动分配结果",
+			onClick: onExport
+		});
 	},
 	setDescription(content: string) {
 		const descriptionElement = document.getElementById("description");
@@ -153,7 +166,7 @@ export const SidebarManager = {
 		/* 事件绑定 */
 		// 外部可能需要hook的函数
 		listItemElement.addEventListener("click", () => {
-			!this.selectControl.isSelectMode && onClick();
+			!this.selectControl.enabled && onClick();
 		});
 		// 内部，处理多选逻辑的函数
 		listItemElement.addEventListener("click", () => {
@@ -174,6 +187,7 @@ export const SidebarManager = {
 		const list = document.getElementById("marker-list")!;
 		list.innerHTML = '';
 		this.listItemsMap.clear();
+		this.setDescription("将旅行照片文件夹拖入到侧边栏，可以进行导入<br>也可以点击按钮进行导入")
 	}
 };
 

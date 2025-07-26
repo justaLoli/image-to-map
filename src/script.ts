@@ -15,7 +15,7 @@ import { ImageFileWithMeta } from './types';
 import { MapManager } from './MapManager';
 
 // 4. SidebarManager 对象 (TypeScript版)
-import { SidebarManager } from './SidebarManager';
+import { SelectedIDs, SidebarManager } from './SidebarManager';
 
 const App = {
     imageFiles: [] as ImageFileWithMeta[],
@@ -27,7 +27,7 @@ const App = {
         SidebarManager.clearList();
     },
 
-    main: async function (fileArray: File[]): Promise<void> {
+    onFileLoaded: async function (fileArray: File[]): Promise<void> {
 
         this.resetImageFiles();
         await this.parseImageFiles(fileArray, (current, total) => {
@@ -38,7 +38,7 @@ const App = {
 
         this.imageFiles.forEach(img => {
             MapManager.createMarker(img, () => {
-                console.log("marker被点击", img);   
+                this.onMarkerClick(img);
             })
             SidebarManager.createListItem(img, () => {
                 console.log("列表元素被点击：", img);
@@ -121,13 +121,80 @@ const App = {
             return await generateThumbnailFromBlob(file);
         }
     },
+    onMarkerClick(img: ImageFileWithMeta) {
+        console.log("marker被点击", img);
+    },
+    commitLocationAssignment(ids: SelectedIDs, latlng: L.LatLng) {
+        this.imageFiles.filter(i => ids.has(i.id)).forEach(img => {
+            img.gps = latlng;
+            img.isManualGps = true;
+            MapManager.createMarker(img, () => this.onMarkerClick(img));
+        })
+        SidebarManager.setDescription(`成功为${ids.size}个图片指定位置`)
+        /* 添加marker到地图上。该方法不会重复添加，也不会移动视图 */
+        MapManager.showMarkers(this.imageFiles);
+        
+        /* 清除Sidebar现有的选项 */
+        SidebarManager.selectControl.resetSelection();
+        
+        /* MARK: 将Sidebar显示内容更新。难点在于无法按照filter更新。
+         * 为了解决这个问题，将filter持久化存储在SidebarManager里作为一个属性方便调用。
+         * 另一个难点在于找到listItem的ref并修改其内容，写了一段简短的hack */
+        this.imageFiles.forEach(img => {
+            const listItem = SidebarManager.listItemsMap.get(img.id);
+            if (!listItem) return;
+            const desc = listItem.querySelector('.list-item-desc');
+            if (!desc) return;
+            desc.innerHTML = desc.innerHTML.replace(
+                /位置信息：[^\n<]*/,
+                `位置信息：${img.gps ? '有' : '无'}`
+            );
+        })
+        SidebarManager.showList(App.imageFiles.filter(SidebarManager.listFilter));
+
+    }
 }
 
 // 6. 启动应用
 MapManager.init();
 SidebarManager.init({
-    onFileLoaded: (fileArray) => App.main(fileArray),
+    onFileLoaded: (fileArray) => { App.onFileLoaded(fileArray) },
     onChangeFilter: (filter) => { SidebarManager.showList(App.imageFiles.filter(filter)) },
-    onSelectChange: (sel) => {console.log("select changed!", sel)}
+    gpsAssign_onSelectChange: (sel) => {
+        console.log("select changed!", sel);
+        SidebarManager.setDescription(`选择了${sel.size}个图片`);
+        /* 如果多选状态下，选择数归零，则关闭地图选点 */
+        if (!sel.size) { MapManager.locationPicker.disable(); return; }
+        MapManager.locationPicker.enable({
+            onPickCallback: (ll) => {
+                console.trace("选点完成", ll, sel);
+                App.commitLocationAssignment(sel, ll);
+            }
+        })
+    },
+    gpsAssign_onCancel: () => {
+        MapManager.locationPicker.disable();
+        SidebarManager.setDescription("位置指定模式已关闭");
+    },
+    onClear: () => { App.resetImageFiles() },
+    onExport: () => {
+        const content: Record<string, { lat: number; lng: number }> = {};
+
+        App.imageFiles.filter(i => i.gps && i.isManualGps).forEach(img => {
+            content[img.file.webkitRelativePath] = img.gps!;
+        });
+
+        const json = JSON.stringify(content, null, 2); // 美化缩进
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "manual-gps.json";
+        a.click();
+
+        URL.revokeObjectURL(url);
+    }
+
 });
 
