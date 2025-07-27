@@ -5,7 +5,7 @@ html, body, #root {
     margin: 0;
     padding: 0;
     font-family: sans-serif;
-    --sidebar-width: clamp(350px, 33%, 450px);
+    --sidebar-width: clamp(min(100%, 350px), 33%, 450px);
 }
 
 /* 外层容器 #all 使用 absolute实现左右1:2 布局 */
@@ -40,7 +40,7 @@ html, body, #root {
     top: 0;
     height: 100%;
     width: var(--sidebar-width);
-    z-index: 100;
+    z-index: 2000;
 
     display: flex;
     flex-direction: column;
@@ -59,7 +59,7 @@ html, body, #root {
     position: absolute;
     top: 24px;
     right: calc(100% - var(--sidebar-width) + 24px);
-    z-index: 9999;         /* 确保按钮在最上层 */
+    z-index: 2001;         /* 确保按钮在最上层 */
     /* 美化样式 */
     width: 34px;
     height: 34px;
@@ -107,7 +107,7 @@ html, body, #root {
     align-items: center;
     gap: 8px;
     padding: 0 8px;
-    z-index: 9999;
+    z-index: 1000;
 }
 
 
