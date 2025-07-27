@@ -1,5 +1,5 @@
 import L from 'leaflet';
-import { createButtonToButtonGroup, formatDate, ImageFileWithMeta } from './types';
+import { formatDate, ImageFileWithMeta } from './types';
 
 // --- 解决 Leaflet 生产环境图标问题的代码 ---
 // 1. 手动导入所有需要的图标资源
@@ -17,11 +17,26 @@ const myMarkerIcon = L.icon({
     shadowSize: [41, 41]  // 阴影大小
 });
 
+export const createButtonToButtonGroup = (param: { 
+    id: string, 
+    innerHTML: string 
+    onClick: (e: MouseEvent, button: HTMLButtonElement) => any, 
+    group_id: string
+}) => {
+    const { id, onClick, innerHTML, group_id } = param;
+    const buttonGroup = document.getElementById(group_id)! as HTMLDivElement;
+    const button = document.createElement("button");
+    button.id = id;
+    button.addEventListener("click", (e) => { onClick(e, button) })
+    button.innerHTML = innerHTML;
+    buttonGroup.appendChild(button);
+}
+
 const createButton = (param: { 
     id: string, 
     innerHTML: string 
     onClick: (e: MouseEvent, button: HTMLButtonElement) => any, 
-}) => createButtonToButtonGroup({ ...param, group_id: "button-group-2" })
+}) => createButtonToButtonGroup({ ...param, group_id: "map-control-button-group" })
 
 class RightClickZoomControl {
     public enabled = false;

@@ -5,12 +5,12 @@ html, body, #root {
     margin: 0;
     padding: 0;
     font-family: sans-serif;
+    --sidebar-width: clamp(350px, 33%, 450px);
 }
 
-/* 外层容器 #all 使用 Flexbox 布局 */
+/* 外层容器 #all 使用 absolute实现左右1:2 布局 */
 #all {
-    display: flex;
-    flex-direction: row;
+    position: relative;
     width: 100%;
     height: 100%;
     overflow: hidden;
@@ -18,7 +18,12 @@ html, body, #root {
 
 /* 右侧地图容器 #map 的样式 */
 #map {
-    flex: 2;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: var(--sidebar-width); /* 与 #sidebar 的宽度保持一致 */
+    transition: left 0.35s ease-in-out;
 }
 
 /* 保持光标为十字准星 */
@@ -30,22 +35,81 @@ html, body, #root {
 
 /* 左侧边栏 #sidebar 的样式 */
 #sidebar {
-    flex: 1;
-    max-width: 450px; /* 添加一个最大宽度 */
-    min-width: 350px; /* 添加一个最小宽度 */
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: var(--sidebar-width);
+    z-index: 100;
+
+    display: flex;
     flex-direction: column;
     padding: 24px;
-    display: flex;
     gap: 8px;
     background-color: #f4f4f4;
     box-sizing: border-box;
     border-right: 1px solid #ccc;
-    overflow: hidden;
-}
 
+    transition: transform 0.35s ease-in-out;
+}
 #sidebar.dragover {
     background-color: #e0e0e0; /* 拖拽悬浮时的背景色 */
 }
+#toggle-sidebar-btn {
+    position: absolute;
+    top: 24px;
+    right: calc(100% - var(--sidebar-width) + 24px);
+    z-index: 9999;         /* 确保按钮在最上层 */
+    /* 美化样式 */
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 28px;
+    text-align: center;
+    color: #555;
+    transition: all 0.35s ease-in-out;
+}
+#toggle-sidebar-btn:hover {
+    background-color: #e9e9e9;
+    color: #000;
+}
+
+/* 当 #all 拥有 .sidebar-collapsed 类时，侧边栏的状态 */
+#all.sidebar-collapsed #sidebar {
+    /* 改变6: 将侧边栏向左平移自身100%的宽度，移出屏幕 */
+    transform: translateX(-100%);
+}
+/* 当 #all 拥有 .sidebar-collapsed 类时，主内容区的状态 */
+#all.sidebar-collapsed #map {
+    /* 改变7: 主内容区左边距变为0，占据全部宽度 */
+    left: 0;
+}
+#all.sidebar-collapsed #toggle-sidebar-btn {
+    /* 让按钮随侧边栏移出后，再向右移动100% + 10px，使其可见 */
+    /*transform: translateX(calc(clamp(350px, 33%, 450px) + 10px));*/
+    /* 原位置是calc(100% - var(--sidebar-width) + 24px)，新位置是calc(100% - 24px - 34px)  */
+    /*transform: rotate(180deg); */
+    right: calc(100% - 24px - 34px);
+}
+
+#map-control-button-group {
+    position: absolute;
+    background-color: #ffffffb0;
+    right: 24px;
+    top: 24px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 8px;
+    z-index: 9999;
+}
+
 
 h2 {
     margin: 0;
@@ -85,13 +149,6 @@ button {
     background-color: #bbb;
 }
 
-#sidebar #button-group-1 {
-    display: none;
-}
-
-#sidebar #button-group-2 {
-    display: none;
-}
 
 
 #marker-list {

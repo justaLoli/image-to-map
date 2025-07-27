@@ -155,7 +155,32 @@ const App = {
     }
 }
 
-// 6. 启动应用
+
+/* 因为需要控制MapManager进行invalidateSize，所以狗皮膏药似的写在这里 */
+document.addEventListener('DOMContentLoaded', () => {
+    // 获取需要的DOM元素
+    const allContainer = document.getElementById('all')! as HTMLDivElement; // 获取父容器
+    const toggleBtn = document.getElementById('toggle-sidebar-btn')! as HTMLButtonElement;
+    // 为按钮添加点击事件监听器
+    toggleBtn.addEventListener('click', () => {
+        // 在父容器上切换 'sidebar-collapsed' 类
+        allContainer.classList.toggle('sidebar-collapsed');
+        setTimeout(() => {
+            MapManager.map!.invalidateSize();
+        }, 350); /* 考虑动画延时，哈哈😅 */
+        // 更新按钮的提示文字 (图标的翻转已由CSS的transform: rotate()处理)
+        if (allContainer.classList.contains('sidebar-collapsed')) {
+            toggleBtn.innerHTML = "➡️"
+            toggleBtn.title = '展开侧边栏';
+        } else {
+            toggleBtn.innerHTML = "⬅️"
+            toggleBtn.title = '折叠侧边栏';
+        }
+    });
+});
+
+
+
 MapManager.init();
 SidebarManager.init({
     onFileLoaded: (fileArray) => { App.onFileLoaded(fileArray) },
@@ -193,4 +218,3 @@ SidebarManager.init({
     }
 
 });
-

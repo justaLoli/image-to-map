@@ -163,36 +163,6 @@ export const SidebarManager = {
 			name: "export",
 			onClick: onExport
 		});
-
-		// bindButton({
-		// 	id: "clear-button",
-		// 	innerHTML: "清除列表",
-		// 	onClick: onClear
-		// });
-		// bindButton({
-		// 	id: "shownogps-button",
-		// 	innerHTML: "只显示无位置信息",
-		// 	onClick: () => {  }
-		// });
-		// bindButton({
-		// 	id: "showall-button",
-		// 	innerHTML: "显示全部",
-		// 	onClick: () => {  }
-		// });
-		// bindButton({
-		// 	id: "selecttoggle-button",
-		// 	innerHTML: "手动分配位置（推荐对无位置信息图片使用）",
-		// 	onClick: (_, button) => { 
-		// 		this.selectControl.setEnabled(!this.selectControl.enabled, gpsAssign_onSelectChange)
-		// 		if (!this.selectControl.enabled) { gpsAssign_onCancel() } /* 从enable变换到了非enable */
-		// 		button.innerHTML = this.selectControl.enabled ? "取消选择" : "手动分配位置（推荐对无位置信息图片使用）"
-		// 	}
-		// });
-		// bindButton({
-		// 	id: "exportmanualgps-button",
-		// 	innerHTML: "导出手动分配结果",
-		// 	onClick: onExport
-		// });
 	},
 	setDescription(content: string) {
 		const descriptionElement = document.getElementById("description");
