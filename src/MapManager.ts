@@ -214,10 +214,10 @@ export const MapManager = {
         this.map = L.map('map', {
             preferCanvas: true,
             zoomSnap: 0.1,
-            scrollWheelZoom: true
+            scrollWheelZoom: true,
+            zoomControl: false
         }).setView([39.875272, 116.3914417], 13);
         this.map.invalidateSize();
-
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxZoom: 19,

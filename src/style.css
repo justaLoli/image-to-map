@@ -13,17 +13,31 @@ html, body, #root {
     flex-direction: row;
     width: 100%;
     height: 100%;
+    overflow: hidden;
 }
+
+/* 右侧地图容器 #map 的样式 */
+#map {
+    flex: 2;
+}
+
+/* 保持光标为十字准星 */
+.leaflet-zoom-box {
+    background: rgba(255, 255, 255, 0.5);
+    border: 2px dotted #ff7800;
+}
+
 
 /* 左侧边栏 #sidebar 的样式 */
 #sidebar {
-    display: flex;
+    flex: 1;
+    max-width: 450px; /* 添加一个最大宽度 */
+    min-width: 350px; /* 添加一个最小宽度 */
     flex-direction: column;
-    flex: 0 0 30%;
-    max-width: 400px; /* 添加一个最大宽度 */
-    min-width: 300px; /* 添加一个最小宽度 */
+    padding: 24px;
+    display: flex;
+    gap: 8px;
     background-color: #f4f4f4;
-    padding: 20px;
     box-sizing: border-box;
     border-right: 1px solid #ccc;
     overflow: hidden;
@@ -33,35 +47,77 @@ html, body, #root {
     background-color: #e0e0e0; /* 拖拽悬浮时的背景色 */
 }
 
-/* 地图容器 #map 的样式 */
-#map {
-    flex: 1;
+h2 {
+    margin: 0;
 }
 
-/* 保持光标为十字准星 */
-.leaflet-zoom-box {
-    background: rgba(255, 255, 255, 0.5);
-    border: 2px dotted #ff7800;
+#description {
+    margin: 0;
+    height: 70px;
+    overflow-y: hidden;
 }
+
+button {
+    white-space: nowrap;
+}
+
+/* 控制条样式 */
+
+#sidebar #control {
+    /*margin-top: 8px;*/
+    height: 24px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+#sidebar #control .group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#sidebar #control .separator {
+    width: 1px;
+    height: 24px;
+    background-color: #bbb;
+}
+
+#sidebar #button-group-1 {
+    display: none;
+}
+
+#sidebar #button-group-2 {
+    display: none;
+}
+
 
 #marker-list {
     flex: 1;
     overflow-y: auto;
-  margin-top: 20px;
-  /*padding-right: 10px;*/
+    width: 100%;
+    height: 100%;
+    padding-right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
+
 .list-item {
-  display: flex;
-  align-items: center;
-  max-height: 120px;
   border: 1px solid #ccc;
   padding: 8px;
-  margin: 8px 0;
-  overflow: hidden;
+  margin: 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  overflow: clip;
   cursor: pointer;
   background-color: #fff;
   transition: background-color 0.2s;
+  border-radius: 16px;
 }
 
 .list-item:hover {
@@ -75,9 +131,8 @@ html, body, #root {
 
 .list-item-desc {
   flex: 1;
-  font-size: 14px;
+  font-size: 12px;
   margin: 0;
-  margin-right: 10px;
   overflow-wrap: break-word;
   overflow: auto;
 }
@@ -87,4 +142,7 @@ html, body, #root {
   width: 100px;
   height: 100px;
   object-fit: cover; /* 保证图片比例不变 */
+  border-radius: 8px;
 }
+
+

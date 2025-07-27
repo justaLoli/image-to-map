@@ -9,9 +9,24 @@
 <body>
     <div id="all">
         <div id="sidebar">
-            <h2>侧边栏</h2>
+            <button id="toggle-sidebar-btn" title="折叠侧边栏">«</button>
+            <h2>照片地图</h2>
             <!-- <p>这里是侧边栏区域，占左侧30%的宽度。</p> -->
             <p id="description"></p>
+            <div id="control">
+            <div id="file-control" class="group">
+                <button name="import-and-clear-button">导入</button>
+            </div>
+                <div class="group">
+                    <select name="filter" id="filter-select">
+                        <option value="all">过滤：全部</option>
+                        <option value="onlygps">过滤：无位置</option>
+                    </select>
+                    <div class="separator"></div>
+                    <button name="edit">编辑位置</button>
+                    <button name="export">导出</button>
+                </div>  
+            </div>
             <div id="button-group-1"></div>
             <div id="button-group-2"></div>
             <div id="marker-list"></div>

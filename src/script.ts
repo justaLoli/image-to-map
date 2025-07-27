@@ -172,10 +172,6 @@ SidebarManager.init({
             }
         })
     },
-    gpsAssign_onCancel: () => {
-        MapManager.locationPicker.disable();
-        SidebarManager.setDescription("位置指定模式已关闭");
-    },
     onClear: () => { App.resetImageFiles() },
     onExport: () => {
         const content: Record<string, { lat: number; lng: number }> = {};
