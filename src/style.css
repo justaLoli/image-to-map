@@ -5,7 +5,8 @@ html, body, #root {
     margin: 0;
     padding: 0;
     font-family: sans-serif;
-    --sidebar-width: clamp(min(100%, 350px), 33%, 450px);
+    --sidebar-width: clamp(min(100%, 300px), 33%, 450px);
+    --sidebar-padding: 16px;
 }
 
 /* 外层容器 #all 使用 absolute实现左右1:2 布局 */
@@ -44,7 +45,7 @@ html, body, #root {
 
     display: flex;
     flex-direction: column;
-    padding: 24px;
+    padding: var(--sidebar-padding);
     gap: 8px;
     background-color: #f4f4f4;
     box-sizing: border-box;
@@ -57,8 +58,8 @@ html, body, #root {
 }
 #toggle-sidebar-btn {
     position: absolute;
-    top: 24px;
-    right: calc(100% - var(--sidebar-width) + 24px);
+    top: var(--sidebar-padding);
+    right: calc(100% - var(--sidebar-width) + var(--sidebar-padding));
     z-index: 2001;         /* 确保按钮在最上层 */
     /* 美化样式 */
     width: 34px;
@@ -92,16 +93,16 @@ html, body, #root {
 #all.sidebar-collapsed #toggle-sidebar-btn {
     /* 让按钮随侧边栏移出后，再向右移动100% + 10px，使其可见 */
     /*transform: translateX(calc(clamp(350px, 33%, 450px) + 10px));*/
-    /* 原位置是calc(100% - var(--sidebar-width) + 24px)，新位置是calc(100% - 24px - 34px)  */
+    /* 原位置是calc(100% - var(--sidebar-width) + var(--sidebar-padding))，新位置是calc(100% - var(--sidebar-padding) - 34px)  */
     /*transform: rotate(180deg); */
-    right: calc(100% - 24px - 34px);
+    right: calc(100% - var(--sidebar-padding) - 34px);
 }
 
 #map-control-button-group {
     position: absolute;
     background-color: #ffffffb0;
-    right: 24px;
-    top: 24px;
+    right: var(--sidebar-padding);
+    top: var(--sidebar-padding);
     height: 34px;
     display: flex;
     align-items: center;
@@ -124,28 +125,37 @@ h2 {
 button {
     white-space: nowrap;
 }
+p {
+    margin: 0;
+}
 
 /* 控制条样式 */
 
 #sidebar #control {
     /*margin-top: 8px;*/
-    height: 24px;
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 8px;
     justify-content: space-between;
+    flex-wrap: wrap;
 }
 
-#sidebar #control .group {
+
+#sidebar .group {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
+}
+
+#sidebar #control #right-group {
+    margin-left: auto;
 }
 
 #sidebar #control .separator {
     width: 1px;
-    height: 24px;
+    height: var(--sidebar-padding);
     background-color: #bbb;
 }
 

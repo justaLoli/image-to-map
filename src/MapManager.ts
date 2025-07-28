@@ -1,5 +1,5 @@
 import L from 'leaflet';
-import { formatDate, ImageFileWithMeta } from './types';
+import { createButtonToButtonGroup, formatDate, ImageFileWithMeta } from './types';
 
 // --- 解决 Leaflet 生产环境图标问题的代码 ---
 // 1. 手动导入所有需要的图标资源
@@ -16,21 +16,6 @@ const myMarkerIcon = L.icon({
     popupAnchor: [1, -34], // popup 弹出的位置
     shadowSize: [41, 41]  // 阴影大小
 });
-
-export const createButtonToButtonGroup = (param: { 
-    id: string, 
-    innerHTML: string 
-    onClick: (e: MouseEvent, button: HTMLButtonElement) => any, 
-    group_id: string
-}) => {
-    const { id, onClick, innerHTML, group_id } = param;
-    const buttonGroup = document.getElementById(group_id)! as HTMLDivElement;
-    const button = document.createElement("button");
-    button.id = id;
-    button.addEventListener("click", (e) => { onClick(e, button) })
-    button.innerHTML = innerHTML;
-    buttonGroup.appendChild(button);
-}
 
 const createButton = (param: { 
     id: string, 

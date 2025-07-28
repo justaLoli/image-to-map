@@ -8,7 +8,7 @@ import './style.css';
 
 
 // 为包含元数据的文件对象定义接口
-import { ImageFileWithMeta } from './types';
+import { createButtonToButtonGroup, ImageFileWithMeta } from './types';
 
 
 // 3. MapManager 对象 (TypeScript版)
@@ -16,6 +16,7 @@ import { MapManager } from './MapManager';
 
 // 4. SidebarManager 对象 (TypeScript版)
 import { SelectedIDs, SidebarManager } from './SidebarManager';
+import { exportKML } from './exportkml';
 
 const App = {
     imageFiles: [] as ImageFileWithMeta[],
@@ -156,7 +157,8 @@ const App = {
 }
 
 
-/* 因为需要控制MapManager进行invalidateSize，所以狗皮膏药似的写在这里 */
+/* 展开 / 折叠 侧边栏的按钮逻辑
+ * 因为需要控制MapManager进行invalidateSize，所以狗皮膏药似的写在这里 */
 document.addEventListener('DOMContentLoaded', () => {
     // 获取需要的DOM元素
     const allContainer = document.getElementById('all')! as HTMLDivElement; // 获取父容器
@@ -179,8 +181,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+/* 实验性功能：导出为Google Earth项目格式 */
+createButtonToButtonGroup({
+    id: "export-to-google-earth",
+    innerHTML: "导出为Google Earth项目",
+    onClick: () => {exportKML(App.imageFiles);},
+    group_id: "experiment-button-group"
+});
 
 
+
+
+// 启动应用
 MapManager.init();
 SidebarManager.init({
     onFileLoaded: (fileArray) => { App.onFileLoaded(fileArray) },
