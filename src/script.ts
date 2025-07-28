@@ -41,9 +41,12 @@ const App = {
             MapManager.createMarker(img, () => {
                 this.onMarkerClick(img);
             })
-            SidebarManager.createListItem(img, () => {
+            SidebarManager.createListItem(img, (type) => {
                 console.log("列表元素被点击：", img);
-                MapManager.focusOnMarker(img);
+                switch (type) {
+                    case "single": MapManager.focusOnMarker(img, MapManager.getFitAllZoomLevel() ?? 16); break;
+                    case "double": MapManager.focusOnMarker(img);
+                }
             });
         });
     
@@ -185,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
 createButtonToButtonGroup({
     id: "export-to-google-earth",
     innerHTML: "导出为Google Earth项目",
-    onClick: () => {exportKML(App.imageFiles);},
+    onClick: () => { exportKML(App.imageFiles); },
     group_id: "experiment-button-group"
 });
 

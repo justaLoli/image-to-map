@@ -152,7 +152,7 @@ export const SidebarManager = {
 			onClick: (_, button) => {
 				this.selectControl.setEnabled(!this.selectControl.enabled, gpsAssign_onSelectChange);
 				if (this.selectControl.enabled) { SidebarManager.setDescription("开始位置指定模式"); } /* 从enable变换到了非enable */
-				if (!this.selectControl.enabled) { SidebarManager.setDescription("位置指定模式已关闭");} /* 从enable变换到了非enable */
+				if (!this.selectControl.enabled) { SidebarManager.setDescription("位置指定模式已关闭"); } /* 从enable变换到了非enable */
 				button.innerHTML = this.selectControl.enabled
 					? "退出编辑"
 					: "编辑位置";
@@ -169,7 +169,7 @@ export const SidebarManager = {
 		if (descriptionElement) descriptionElement.innerHTML = content;
 	},
 
-	createListItem(img: ImageFileWithMeta, onClick?: any) {
+	createListItem(img: ImageFileWithMeta, onClick?: ((clicktype: "single" | "double") => any)) {
 		const listItemElement = document.createElement('div');
 		/* 将数据的id写入DOM元素，方便反查 */
 		listItemElement.dataset.id = img.id; 
@@ -196,9 +196,14 @@ export const SidebarManager = {
 		listItemElementPreview.loading = "lazy";
 		/* 事件绑定 */
 		// 外部可能需要hook的函数
-		listItemElement.addEventListener("click", () => {
-			!this.selectControl.enabled && onClick();
+		listItemElement.addEventListener("dblclick", (e) => {
+			e.preventDefault();
+			!this.selectControl.enabled && onClick && onClick("double");
 		});
+		listItemElement.addEventListener("click", () => {
+			!this.selectControl.enabled && onClick && onClick("single");
+		});
+
 		// 内部，处理多选逻辑的函数
 		listItemElement.addEventListener("click", () => {
 			this.selectControl.onSelect(listItemElement)

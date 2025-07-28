@@ -271,15 +271,22 @@ export const MapManager = {
             this.map?.fitBounds(bounds.pad(0.1));
         }
     }, 
-
-    focusOnMarker(img: ImageFileWithMeta) {
+    getFitAllZoomLevel() {
+        const bounds = this.allMarkersGroup?.getBounds();
+        if (bounds && bounds.isValid() && this.map){
+            const zoom = this.map.getBoundsZoom(bounds);
+            return zoom;
+        }
+        return null;
+    },
+    focusOnMarker(img: ImageFileWithMeta, zoomlevel = 18) {
         const marker = this.markersMap.get(img.id);
         if (!marker || !this.map) {
             console.warn(`no marker or no map`);
             return;
         }
         const latLng = marker.getLatLng();
-        this.map.flyTo(latLng, 18, {
+        this.map.flyTo(latLng, zoomlevel, {
             animate: true,
         });
         marker.openPopup(); // 要放在激活flyTo后面。
