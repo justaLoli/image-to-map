@@ -31,14 +31,6 @@ class RightClickZoomControl {
     private map = null as L.Map | null;
     public init(map: L.Map) {
         this.map = map;
-        createButton({
-            id: "rightclickzoom-toggle-button",
-            innerHTML: "右键缩放：关",
-            onClick: (_, b) => {
-                this.setEnabled(!this.enabled);
-                b.innerHTML = `右键缩放：${this.enabled ? "开" : "关"}`
-            }
-        })
         map.on('contextmenu', (e: L.LeafletMouseEvent) => {
             e.originalEvent.preventDefault();
             if (!this.enabled) { return; }
@@ -102,14 +94,6 @@ class TrackPadModeControl {
     private map = null as L.Map | null;
     public init(map: L.Map) {
         this.map = map;
-        createButton({
-            id: "trackpadmode-toggle-button", 
-            innerHTML: "触控板模式：开", 
-            onClick: (_, b) => {
-                this.setEanbled(!this.enabled)
-                b.innerHTML = `触控板模式：${this.enabled ? "开" : "关"}`
-            }
-        })
         // 实现macOS触控板缩放移动手势的妙妙小代码
         this.map.getContainer().addEventListener('wheel', (e) => {
             e.preventDefault(); // 阻止默认缩放行为
@@ -227,7 +211,30 @@ export const MapManager = {
         this.rightClickZoom.init(this.map);
         this.trackPadMode.init(this.map);
         this.locationPicker.init(this.map);
-
+        
+        createButton({
+            id: "fit-marker-button",
+            innerHTML: "缩放到适合",
+            onClick: () => { this.fitAllMarkers(); }
+        });
+        createButton({
+            id: "rightclickzoom-toggle-button",
+            innerHTML: "右键缩放：关",
+            onClick: (_, b) => {
+                const rcz = this.rightClickZoom;
+                rcz.setEnabled(!rcz.enabled);
+                b.innerHTML = `右键缩放：${rcz.enabled ? "开" : "关"}`
+            }
+        });
+        createButton({
+            id: "trackpadmode-toggle-button", 
+            innerHTML: "触控板模式：开", 
+            onClick: (_, b) => {
+                const tpm = this.trackPadMode;
+                tpm.setEanbled(!tpm.enabled)
+                b.innerHTML = `触控板模式：${tpm.enabled ? "开" : "关"}`
+            }
+        });
     },
     
     createMarker(img: ImageFileWithMeta, onclick?: any): void {
@@ -246,7 +253,7 @@ export const MapManager = {
         }
         const markerDescription = `时间：${formatDate(img.datetime)}<br>文件：${img.file.name}`;
         const marker = _createMarker(img.gps, markerDescription);
-        onclick &&marker.on('click', onclick);
+        onclick && marker.on('click', onclick);
         this.markersMap.set(img.id, marker);
     },
 
