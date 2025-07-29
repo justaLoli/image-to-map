@@ -181,7 +181,6 @@ p {
   display: flex;
   gap: 8px;
   align-items: center;
-  overflow: clip;
   cursor: pointer;
   background-color: #fff;
   transition: background-color 0.2s;
