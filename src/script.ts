@@ -27,38 +27,41 @@ const App = {
         MapManager.clearAllMarkers();
         SidebarManager.clearList();
     },
-    preferredZoomLevel: "fitall" as ("fitall" | "close"),
+    getZoomLevel: (() => {
+        let preferredZoomLevel = "fitall" as ("fitall" | "close");
+        return function (change: boolean) {
+            if (change) {
+                preferredZoomLevel = preferredZoomLevel == "fitall" ? "close" : "fitall";
+            }
+            return preferredZoomLevel == "fitall"
+                ? MapManager.getFitAllZoomLevel() ?? 16
+                : 18;
+        }
+    })(),
     onFileLoaded: async function (fileArray: File[]): Promise<void> {
-
+        /* 重新开始 */
         this.resetImageFiles();
+        /* 解析元数据，生成缩略图 */
         await this.parseImageFiles(fileArray, (current, total) => {
             SidebarManager.setDescription(`正在解析并生成缩略图以优化后续操作<br>第${current}张照片，共${total}张...`)
         });
     
         SidebarManager.setDescription(`导入了 ${this.imageFiles.length} 张图片，其中 ${this.imageFiles.filter(i => i.gps).length} 张具备位置信息，已在图上标出`);
-
+        /* 创建marker */
         this.imageFiles.forEach(img => {
             MapManager.createMarker(img, (mode, img) => {
                 this.onMarkerClick(mode, img);
             })
-            SidebarManager.createListItem(img, (type, img) => {
-                console.log("列表元素被点击：", img);
-                if (type === "double") {
-                    this.preferredZoomLevel = this.preferredZoomLevel == "fitall" 
-                            ? "close" 
-                            : "fitall";
-                }
-                let zoomLevel = 0;
-                switch (this.preferredZoomLevel) {
-                    case "fitall": zoomLevel = MapManager.getFitAllZoomLevel() ?? 16; break;
-                    case "close": zoomLevel = 18; break;
-                }
-                MapManager.focusOnMarker(img, zoomLevel); 
-            });
         });
-    
         MapManager.showMarkers(this.imageFiles);
         MapManager.fitAllMarkers();
+        /* 创建列表元素 */
+        this.imageFiles.forEach(img => {
+            SidebarManager.createListItem(img, (type, img) => {
+                const zoomLevel = this.getZoomLevel(type === "double");
+                MapManager.focusOnMarker(img, zoomLevel);
+            })
+        })
         SidebarManager.showList(this.imageFiles);
     },
     parseImageFiles: async function (fileArray: File[], progressCallback?: (count: number, total: number) => void): Promise<void> {

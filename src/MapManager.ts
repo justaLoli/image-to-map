@@ -1,4 +1,4 @@
-import L, { popup } from 'leaflet';
+import L from 'leaflet';
 import { createButtonToButtonGroup, formatDate, ImageFileWithMeta } from './types';
 
 // --- 解决 Leaflet 生产环境图标问题的代码 ---
