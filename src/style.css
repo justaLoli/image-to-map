@@ -192,6 +192,9 @@ p {
 .list-item:hover {
     background-color: #eaf6ff;
 }
+.list-item.viewhint {
+    background-color: #fff3cd;
+}
 
 .list-item.selected {
     background-color: #aae6ff;

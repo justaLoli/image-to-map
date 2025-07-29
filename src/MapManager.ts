@@ -1,4 +1,4 @@
-import L from 'leaflet';
+import L, { popup } from 'leaflet';
 import { createButtonToButtonGroup, formatDate, ImageFileWithMeta } from './types';
 
 // --- 解决 Leaflet 生产环境图标问题的代码 ---
@@ -237,25 +237,53 @@ export const MapManager = {
         });
     },
     
-    createMarker(img: ImageFileWithMeta, onclick?: any): void {
-        if (!img.gps) { return; }
+    createMarker(
+        img: ImageFileWithMeta, 
+        onClick?: (mode: "unset" | "viewinlist", img: ImageFileWithMeta) => any
+    ): void {
+        if (!img.gps) return;
+
+        const setOnClick1 = (marker: L.Marker) => {
+            marker.off('click');
+            onClick && marker.on('click', () => {marker.openPopup();onClick("unset", img)});
+        }
+        const setOnClick2 = (marker: L.Marker) => {
+            marker.off("popupopen");
+            onClick && marker.on('popupopen', () => {
+                const popupRoot = document.querySelector(`.popup-content[data-img-id="${img.id}"]`);
+                const button = popupRoot?.querySelector('button');
+                button?.addEventListener('click', (e) => {
+                    e.stopPropagation(); // 防止触发 marker 的 click
+                    onClick("viewinlist", img);
+                });
+            });
+        }
+        /* 重复创建 -> 修改原有 */
         if (this.markersMap.has(img.id)) {
             const marker = this.markersMap.get(img.id)!;
             marker.setLatLng(img.gps);
-            marker.off('click');
-            onclick && marker.on('click', onclick);
+            setOnClick1(marker);
+            setOnClick2(marker);
             return;
         }
-        const _createMarker = (latlng: typeof img.gps, popup: any) => {
-            const marker = L.marker(latlng, { icon: myMarkerIcon });
-            marker.bindPopup(popup);
-            return marker;
-        }
-        const markerDescription = `时间：${formatDate(img.datetime)}<br>文件：${img.file.name}`;
-        const marker = _createMarker(img.gps, markerDescription);
-        onclick && marker.on('click', onclick);
+        /* 创建 */
+        const markerDescription = `
+            <div class="popup-content" data-img-id="${img.id}">
+                时间：${formatDate(img.datetime)}<br>
+                文件：${img.file.name}<br>
+                <button class="popup-show-in-list">在列表中显示</button>
+            </div>
+        `;
+
+        const marker = L.marker(img.gps, { icon: myMarkerIcon });
+        marker.bindPopup(markerDescription);
+
+        setOnClick1(marker);
+        setOnClick2(marker);
+
         this.markersMap.set(img.id, marker);
     },
+
 
     showMarkers(imgs: ImageFileWithMeta[]) {
         imgs.forEach(img => {
@@ -273,7 +301,7 @@ export const MapManager = {
     }, 
     getFitAllZoomLevel() {
         const bounds = this.allMarkersGroup?.getBounds();
-        if (bounds && bounds.isValid() && this.map){
+        if (bounds && bounds.isValid() && this.map) {
             const zoom = this.map.getBoundsZoom(bounds);
             return zoom;
         }

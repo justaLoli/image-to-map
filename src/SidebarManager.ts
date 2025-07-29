@@ -169,10 +169,14 @@ export const SidebarManager = {
 		if (descriptionElement) descriptionElement.innerHTML = content;
 	},
 
-	createListItem(img: ImageFileWithMeta, onClick?: ((clicktype: "single" | "double") => any)) {
+	createListItem(
+		img: ImageFileWithMeta, 
+		onClick?: (clicktype: "single" | "double", img: ImageFileWithMeta) => any
+	) {
 		const listItemElement = document.createElement('div');
 		/* 将数据的id写入DOM元素，方便反查 */
 		listItemElement.dataset.id = img.id; 
+		
 		/* UI要素创建 */
 		listItemElement.className = "list-item";
 		const listItemElementDescription = document.createElement('p');
@@ -194,20 +198,25 @@ export const SidebarManager = {
 			listItemElementPreview.src = img.thumbnail;
 		}
 		listItemElementPreview.loading = "lazy";
+		
 		/* 事件绑定 */
 		// 外部可能需要hook的函数
 		listItemElement.addEventListener("dblclick", (e) => {
 			e.preventDefault();
-			!this.selectControl.enabled && onClick && onClick("double");
+			!this.selectControl.enabled && onClick && onClick("double", img);
 		});
 		listItemElement.addEventListener("click", () => {
-			!this.selectControl.enabled && onClick && onClick("single");
+			!this.selectControl.enabled && onClick && onClick("single", img);
 		});
-
 		// 内部，处理多选逻辑的函数
 		listItemElement.addEventListener("click", () => {
 			this.selectControl.onSelect(listItemElement)
 		});
+		// 内部，处理滚动高亮的逻辑
+		listItemElement.addEventListener("mouseenter", () => {
+			listItemElement.classList.remove("viewhint");
+		});
+
 		/* 创建（即加入到set）但不展示 */
 		this.listItemsMap.set(img.id, listItemElement);
 	},
@@ -224,6 +233,15 @@ export const SidebarManager = {
 		list.innerHTML = '';
 		this.listItemsMap.clear();
 		this.setDescription("将旅行照片文件夹拖入到侧边栏，可以进行导入<br>也可以点击按钮进行导入")
+	},
+	scrollToItem(id: string) {
+		const listItem = this.listItemsMap.get(id);
+		if (!listItem) { console.warn("scrollToItem: id not found in listItemsMap"); return; }
+		if (document.body.contains(listItem)) {
+			listItem.classList.add("viewhint");
+			setTimeout(() => {listItem.classList.remove("viewhint")}, 2000);
+			listItem.scrollIntoView({ behavior: "smooth", block: "center" });
+		}
 	}
 };
 

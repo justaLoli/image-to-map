@@ -27,7 +27,7 @@ const App = {
         MapManager.clearAllMarkers();
         SidebarManager.clearList();
     },
-
+    preferredZoomLevel: "fitall" as ("fitall" | "close"),
     onFileLoaded: async function (fileArray: File[]): Promise<void> {
 
         this.resetImageFiles();
@@ -38,15 +38,22 @@ const App = {
         SidebarManager.setDescription(`导入了 ${this.imageFiles.length} 张图片，其中 ${this.imageFiles.filter(i => i.gps).length} 张具备位置信息，已在图上标出`);
 
         this.imageFiles.forEach(img => {
-            MapManager.createMarker(img, () => {
-                this.onMarkerClick(img);
+            MapManager.createMarker(img, (mode, img) => {
+                this.onMarkerClick(mode, img);
             })
-            SidebarManager.createListItem(img, (type) => {
+            SidebarManager.createListItem(img, (type, img) => {
                 console.log("列表元素被点击：", img);
-                switch (type) {
-                    case "single": MapManager.focusOnMarker(img, MapManager.getFitAllZoomLevel() ?? 16); break;
-                    case "double": MapManager.focusOnMarker(img);
+                if (type === "double") {
+                    this.preferredZoomLevel = this.preferredZoomLevel == "fitall" 
+                            ? "close" 
+                            : "fitall";
                 }
+                let zoomLevel = 0;
+                switch (this.preferredZoomLevel) {
+                    case "fitall": zoomLevel = MapManager.getFitAllZoomLevel() ?? 16; break;
+                    case "close": zoomLevel = 18; break;
+                }
+                MapManager.focusOnMarker(img, zoomLevel); 
             });
         });
     
@@ -125,14 +132,18 @@ const App = {
             return await generateThumbnailFromBlob(file);
         }
     },
-    onMarkerClick(img: ImageFileWithMeta) {
+    onMarkerClick(mode: "unset" | "viewinlist", img: ImageFileWithMeta) {
         console.log("marker被点击", img);
+        switch (mode) {
+            case "unset": break;
+            case "viewinlist": SidebarManager.scrollToItem(img.id); break;
+        }
     },
     commitLocationAssignment(ids: SelectedIDs, latlng: L.LatLng) {
         this.imageFiles.filter(i => ids.has(i.id)).forEach(img => {
             img.gps = latlng;
             img.isManualGps = true;
-            MapManager.createMarker(img, () => this.onMarkerClick(img));
+            MapManager.createMarker(img, this.onMarkerClick.bind(this));
         })
         SidebarManager.setDescription(`成功为${ids.size}个图片指定位置`)
         /* 添加marker到地图上。该方法不会重复添加，也不会移动视图 */
