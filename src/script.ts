@@ -143,27 +143,31 @@ const App = {
         }
     },
     commitLocationAssignment(ids: SelectedIDs, latlng: L.LatLng) {
-        this.imageFiles.filter(i => ids.has(i.id)).forEach(img => {
+        const editImages = this.imageFiles.filter(i => ids.has(i.id));
+        if (editImages.filter(i => i.gps).length > 0 && !confirm("一些图片已有位置信息。确认编辑吗？")) { return; }
+        editImages.forEach(img => {
+            // 对覆盖原有位置的情况进行提示
             img.gps = latlng;
             img.isManualGps = true;
             MapManager.createMarker(img, this.onMarkerClick.bind(this));
         })
-        SidebarManager.setDescription(`成功为${ids.size}个图片指定位置`)
+
         /* 添加marker到地图上。该方法不会重复添加，也不会移动视图 */
         MapManager.showMarkers(this.imageFiles);
         
         /* 清除Sidebar现有的选项 */
         SidebarManager.selectControl.resetSelection();
         
-        /* MARK: 将Sidebar显示内容更新。难点在于无法按照filter更新。
+        SidebarManager.setDescription(`成功为${ids.size}个图片指定位置`)
+        
+        /* MARK: 将Sidebar显示内容更新。
+         * 难点在于无法按照filter更新。
          * 为了解决这个问题，将filter持久化存储在SidebarManager里作为一个属性方便调用。
-         * 另一个难点在于找到listItem的ref并修改其内容，写了一段简短的hack */
-        this.imageFiles.forEach(img => {
+         * 另一个难点在于找到listItem的ref并修改其内容。这里写了一段简短的hack */
+        editImages.forEach(img => {
             const listItem = SidebarManager.listItemsMap.get(img.id);
-            if (!listItem) return;
-            const desc = listItem.querySelector('.list-item-desc');
-            if (!desc) return;
-            desc.innerHTML = desc.innerHTML.replace(
+            const desc = listItem?.querySelector('.list-item-desc');
+            if (desc) desc.innerHTML = desc.innerHTML.replace(
                 /位置信息：[^\n<]*/,
                 `位置信息：${img.gps ? '有' : '无'}`
             );
@@ -198,7 +202,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-/* 实验性功能：导出为Google Earth项目格式 */
+/* 实验性功能 */
+createButtonToButtonGroup({
+    id: "openfiles-simple",
+    innerHTML: "导入图片（兼容性模式）",
+    onClick: () => {
+        new Promise<File[]>((resolve, reject) => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.addEventListener('change', () => {
+                if (input.files) {
+                    resolve(Array.from(input.files));
+                } else {
+                    reject(new Error('no files selected'));
+                }
+            });
+            input.click();
+        }).then(filearray => App.onFileLoaded(filearray));
+    },
+    group_id: "experiment-button-group"
+});
+// 导出为Google Earth项目格式 
 createButtonToButtonGroup({
     id: "export-to-google-earth",
     innerHTML: "导出为Google Earth项目",
